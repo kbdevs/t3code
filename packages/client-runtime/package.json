@@ -386,6 +386,10 @@
     "./device/duo-control": {
       "types": "./src/device/duoControl.ts",
       "default": "./src/device/duoControl.ts"
+    },
+    "./state/session-transfer": {
+      "types": "./src/state/session-transfer.ts",
+      "default": "./src/state/session-transfer.ts"
     }
   },
   "scripts": {

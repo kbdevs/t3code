@@ -1,3 +1,4 @@
+import * as SessionTransfer from "../project/SessionTransferService.ts";
 import * as UsageLimitRecoveryWorker from "./UsageLimitRecoveryWorker.ts";
 import * as Scheduler from "../scheduling/Scheduler.ts";
 import * as Layer from "effect/Layer";
@@ -330,6 +331,17 @@ export const layerProduction = Layer.mergeAll(
   layerProjectService,
   layerManagedProjectFoldersProvided,
   layerThreadLaunchProvided,
+  SessionTransfer.layer.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        layerProjectService,
+        layerManagedProjectFoldersProvided,
+        layerThreadLaunchProvided,
+        layerThreadManagementProvided,
+        layerEventSinkProvided,
+      ),
+    ),
+  ),
   layerThreadLifecycleProvided,
   layerScheduledTaskProvided,
   layerSecretRequestsProvided,
