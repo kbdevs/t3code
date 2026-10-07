@@ -1,12 +1,6 @@
 // @effect-diagnostics globalTimers:off - The stream owns this browser control queue and its timeout.
-export const DUO_POSES = [
-  { id: "closed", label: "Closed", angle: 0 },
-  { id: "book", label: "Book", angle: 90 },
-  { id: "open", label: "Open", angle: 180 },
-  { id: "laptop", label: "Laptop", angle: 90 },
-  { id: "tent", label: "Tent", angle: 80 },
-] as const;
-export type DuoPose = (typeof DUO_POSES)[number]["id"];
+/** Native hinge presets. Each one also sets the device's physical orientation. */
+export type DuoPose = "closed" | "book" | "open" | "laptop" | "tent";
 export type DuoOrientation =
   | "portrait"
   | "landscape_left"
