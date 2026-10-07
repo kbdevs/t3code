@@ -31,7 +31,7 @@ export function DeviceDuoControls(props: {
   const stand = screen.hingePose === "laptop" || screen.hingePose === "tent";
   // The inner panel is mounted a quarter turn from the cover.
   const landscape = screen.orientation.startsWith("landscape");
-  const phoneVertical = screen.screenId === 3 ? landscape : !landscape;
+  const phoneVertical = screen.screenId === 1 ? !landscape : landscape;
   const fold = angle === 0 ? "closed" : angle === 180 ? "open" : "half";
   const foldLabels = {
     closed: "Closed",
