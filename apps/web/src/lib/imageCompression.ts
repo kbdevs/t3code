@@ -516,14 +516,36 @@ async function prepareDngForAttachment(
     ) {
       return { ok: false, reason: "unreadable" };
     }
-    const surface = createCanvas(image.width, image.height);
+    // Bound both RGBA allocation and main-thread work before the first PNG encode.
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(image.width, image.height));
+    const width = Math.max(1, Math.round(image.width * scale));
+    const height = Math.max(1, Math.round(image.height * scale));
+    const surface = createCanvas(width, height);
     if (!surface) return { ok: false, reason: "unreadable" };
-    const pixels = surface.context.createImageData(image.width, image.height);
-    for (let source = 0, target = 0; source < image.data.length; source += 3, target += 4) {
-      pixels.data[target] = image.data[source]!;
-      pixels.data[target + 1] = image.data[source + 1]!;
-      pixels.data[target + 2] = image.data[source + 2]!;
-      pixels.data[target + 3] = 255;
+    const pixels = surface.context.createImageData(width, height);
+    for (let y = 0; y < height; y += 1) {
+      const sourceY = Math.max(0, ((y + 0.5) * image.height) / height - 0.5);
+      const y0 = Math.floor(sourceY);
+      const y1 = Math.min(image.height - 1, y0 + 1);
+      const dy = sourceY - y0;
+      for (let x = 0; x < width; x += 1) {
+        const sourceX = Math.max(0, ((x + 0.5) * image.width) / width - 0.5);
+        const x0 = Math.floor(sourceX);
+        const x1 = Math.min(image.width - 1, x0 + 1);
+        const dx = sourceX - x0;
+        const top = (y0 * image.width + x0) * 3;
+        const bottom = (y1 * image.width + x0) * 3;
+        const right = (x1 - x0) * 3;
+        const target = (y * width + x) * 4;
+        for (let channel = 0; channel < 3; channel += 1) {
+          const upper =
+            image.data[top + channel]! * (1 - dx) + image.data[top + right + channel]! * dx;
+          const lower =
+            image.data[bottom + channel]! * (1 - dx) + image.data[bottom + right + channel]! * dx;
+          pixels.data[target + channel] = upper * (1 - dy) + lower * dy;
+        }
+        pixels.data[target + 3] = 255;
+      }
     }
     surface.context.putImageData(pixels, 0, 0);
     const blob = await encodeCanvas(surface.canvas, 1, "image/png");
@@ -540,7 +562,7 @@ async function prepareDngForAttachment(
       ? {
           ...result,
           recompressed: true,
-          imageSize: result.imageSize ?? { width: image.width, height: image.height },
+          imageSize: result.imageSize ?? { width, height },
         }
       : result;
   } finally {

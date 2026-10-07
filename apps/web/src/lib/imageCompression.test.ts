@@ -747,6 +747,62 @@ describe("DNG attachment preparation", () => {
     expect(mocks.rawDispose).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    { width: 8192, height: 1 },
+    { width: 1, height: 8192 },
+  ])(
+    "bounds the first PNG allocation for a $width × $height DNG and samples its RGB pixels",
+    async ({ width, height }) => {
+      const allocations: number[][] = [];
+      const encodedSizes: number[][] = [];
+      mocks.rawMetadata.mockResolvedValue({ raw_width: width, raw_height: height });
+      mocks.rawImageData.mockResolvedValue({
+        ...image,
+        width,
+        height,
+        data: Uint8Array.from(
+          { length: width * height * 3 },
+          (_, index) => Math.floor(index / 3) % 256,
+        ),
+      });
+      vi.stubGlobal(
+        "OffscreenCanvas",
+        class {
+          constructor(
+            public width: number,
+            public height: number,
+          ) {
+            allocations.push([width, height]);
+          }
+          getContext() {
+            return {
+              createImageData: (w: number, h: number) => {
+                allocations.push([w, h]);
+                return { data: new Uint8ClampedArray(w * h * 4) };
+              },
+              putImageData,
+            };
+          }
+          async convertToBlob() {
+            encodedSizes.push([this.width, this.height]);
+            return new Blob(["png"], { type: "image/png" });
+          }
+        },
+      );
+      const result = await prepareImageForAttachment(new File(["raw"], "large.dng"), 1024);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      const size = width > height ? [2048, 1] : [1, 2048];
+      expect(allocations).toEqual([size, size]);
+      expect(encodedSizes).toEqual([size]);
+      expect(result.imageSize).toEqual({ width: size[0], height: size[1] });
+      const rgba = putImageData.mock.calls[0]![0].data as Uint8ClampedArray;
+      expect(rgba.length).toBe(2048 * 4);
+      expect(rgba.slice(0, 4)).toEqual(new Uint8ClampedArray([2, 2, 2, 255]));
+      expect(rgba.slice(-4)).toEqual(new Uint8ClampedArray([254, 254, 254, 255]));
+    },
+  );
+
   it("keeps PNG output when resizing a converted DNG to the byte limit", async () => {
     stubCanvasPipeline(() => 512);
     let encodes = 0;
