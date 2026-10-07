@@ -14,6 +14,7 @@ import {
   deletePendingAttachmentUpload,
 } from "@t3tools/client-runtime/state/attachments";
 import {
+  AuthOrchestrationOperateScope,
   SESSION_TRANSFER_MAX_BYTES,
   type EnvironmentId,
   type ModelSelection,
@@ -25,7 +26,7 @@ import { connectionAtomRuntime } from "../connection/runtime";
 import { environmentCatalog } from "../connection/catalog";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { serverEnvironment } from "../state/server";
-import { readPreparedConnection } from "../state/session";
+import { readEnvironmentScope, readPreparedConnection } from "../state/session";
 import { assetEnvironment } from "../state/assets";
 import { attachmentEnvironment } from "../state/attachments";
 import { threadEnvironment } from "../state/threads";
@@ -37,6 +38,7 @@ const active = new Set<string>();
 export function localTransferDestination(sourceId: EnvironmentId): EnvironmentId | null {
   const source = appAtomRegistry.get(serverEnvironment.configValueAtom(sourceId));
   if (!source?.environment.capabilities.sessionTransfer) return null;
+  if (!readEnvironmentScope(sourceId, AuthOrchestrationOperateScope)) return null;
   for (const [id, entry] of appAtomRegistry.get(environmentCatalog.catalogValueAtom).entries) {
     if (id === sourceId || !entry.enabled || entry.target._tag !== "PrimaryConnectionTarget")
       continue;
@@ -44,6 +46,7 @@ export function localTransferDestination(sourceId: EnvironmentId): EnvironmentId
     if (!isElectron && !["localhost", "127.0.0.1", "[::1]"].includes(hostname)) continue;
     if (
       readPreparedConnection(id) &&
+      readEnvironmentScope(id, AuthOrchestrationOperateScope) &&
       appAtomRegistry.get(serverEnvironment.configValueAtom(id))?.environment.capabilities
         .sessionTransfer
     )
